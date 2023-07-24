@@ -1,19 +1,36 @@
 image: node:16
 
-stages:
-  - deploy
-
 cache:
   paths:
     - node_modules/
 
-deploy_job:
-  stage: deploy
+stages:
+  - build
+  - deploy
+
+install_dependencies:
+  stage: build
   script:
     - npm install
+  artifacts:
+    paths:
+      - node_modules/
+
+build:
+  stage: build
+  script:
     - npm run build
-    - npm install -g azure-cli
-    - echo "Deploying to Azure..."
-    - azure config mode asm
-    - azure site deploymentscript --node
-    - echo $AZURE_WA_PASSWORD | azure site publish --username $AZURE_WA_SITE_NAME --password $AZURE_WA_PASSWORD --project ./ --repository . -q
+  artifacts:
+    paths:
+      - .next/
+    expire_in: 1 hour
+
+deploy_to_azure:
+  image: mcr.microsoft.com/azure-cli
+  stage: deploy
+  script:
+    - az login --service-principal -u $AZURE_APP_ID -p $AZURE_PASSWORD --tenant $AZURE_TENANT_ID
+    - az account set --subscription $AZURE_SUBSCRIPTION_ID
+    - az webapp up --name Visigrid --html
+  only:
+    - main
