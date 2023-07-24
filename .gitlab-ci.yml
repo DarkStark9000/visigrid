@@ -1,0 +1,19 @@
+image: node:16
+
+stages:
+  - deploy
+
+cache:
+  paths:
+    - node_modules/
+
+deploy_job:
+  stage: deploy
+  script:
+    - npm install
+    - npm run build
+    - npm install -g azure-cli
+    - echo "Deploying to Azure..."
+    - azure config mode asm
+    - azure site deploymentscript --node
+    - echo $AZURE_WA_PASSWORD | azure site publish --username $AZURE_WA_SITE_NAME --password $AZURE_WA_PASSWORD --project ./ --repository . -q
