@@ -41,7 +41,7 @@ const UploadButton: FC<UploadButtonProps> = ({ onFileLoaded }) => {
 
   return (
     <label className="inline-block px-8 py-4 bg-indigo-600 text-white cursor-pointer rounded text-lg font-normal tracking-normal shadow-LG">
-      ↥ Open File
+      ↑ Open File
       <input
         type="file"
         accept=".json,.csv"
