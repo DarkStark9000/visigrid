@@ -40,9 +40,15 @@ const UploadButton: FC<UploadButtonProps> = ({ onFileLoaded }) => {
   };
 
   return (
-    <div>
-      <input type="file" accept=".json,.csv" onChange={handleUpload} />
-    </div>
+    <label className="inline-block px-8 py-4 bg-indigo-600 text-white cursor-pointer rounded text-lg font-normal tracking-normal shadow-LG">
+      ↥ Open File
+      <input
+        type="file"
+        accept=".json,.csv"
+        onChange={handleUpload}
+        className="hidden"
+      />
+    </label>
   );
 };
 

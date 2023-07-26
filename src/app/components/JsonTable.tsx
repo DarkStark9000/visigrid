@@ -1,5 +1,4 @@
 import { FC, useState } from "react";
-import Pagination from "./Pagination";
 
 interface JsonTableProps {
   data: any[];
@@ -7,17 +6,23 @@ interface JsonTableProps {
 
 const JsonTable: FC<JsonTableProps> = ({ data }) => {
   const [tableData, setTableData] = useState(data);
-  const [currentPage, setCurrentPage] = useState(0);
-  const pageSize = 100; // Number of rows per page
+  const [sortColumn, setSortColumn] = useState<number | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const columns = tableData[0];
   const rows = tableData.slice(1);
-  const totalPages = Math.ceil(rows.length / pageSize);
 
-  const displayedRows = rows.slice(
-    currentPage * pageSize,
-    (currentPage + 1) * pageSize
-  );
+  const sortedRows = [...rows].sort((a, b) => {
+    if (sortColumn !== null) {
+      if (a[sortColumn] < b[sortColumn]) {
+        return sortDirection === "asc" ? -1 : 1;
+      }
+      if (a[sortColumn] > b[sortColumn]) {
+        return sortDirection === "asc" ? 1 : -1;
+      }
+    }
+    return 0;
+  });
 
   const handleCellChange = (
     rowIndex: number,
@@ -29,27 +34,38 @@ const JsonTable: FC<JsonTableProps> = ({ data }) => {
     setTableData([columns, ...updatedRows]);
   };
 
+  const handleSort = (index: number) => {
+    setSortColumn(index);
+    setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+  };
+
   return (
-    <>
+    <div className="overflow-auto h-custom w-custom bg-gray-50 bg-opacity-20 backdrop-blur-lg mx-auto mt-12 border border-black rounded-lg p-4">
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${columns.length}, 1fr)`,
-          gap: "10px",
-        }}
+        className="grid gap-0"
+        style={{ gridTemplateColumns: `repeat(${columns.length}, 1fr)` }}
       >
         {columns.map((column: any, index: any) => (
           <div
             key={index}
-            style={{ fontWeight: "bold", borderBottom: "1px solid black" }}
+            className="font-bold p-2 border-b border-black uppercase cursor-pointer"
+            onClick={() => handleSort(index)}
           >
             {column}
+            <span>
+              {sortColumn === index
+                ? sortDirection === "asc"
+                  ? "↓"
+                  : "↑"
+                : ""}
+            </span>
           </div>
         ))}
-        {displayedRows.map((row, rowIndex) =>
+        {sortedRows.map((row, rowIndex) =>
           row.map((value: any, colIndex: any) => (
             <div key={`${rowIndex}-${colIndex}`}>
               <input
+                className="bg-transparent p-2 outline-2	outline-blue-800 rounded-md	border-none	"
                 type="text"
                 value={value}
                 onChange={(e) =>
@@ -60,12 +76,7 @@ const JsonTable: FC<JsonTableProps> = ({ data }) => {
           ))
         )}
       </div>
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-      />
-    </>
+    </div>
   );
 };
 
