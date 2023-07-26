@@ -74,21 +74,36 @@ const JsonTable: FC<JsonTableProps> = ({ data }) => {
         {columns.map((column: any, index: any) => (
           <div
             key={index}
-            className="font-bold p-4 border-b border-neutral-200 uppercase cursor-pointer sticky top-0 backdrop-blur-[90px]"
+            className="flex justify-between items-center font-bold p-4 border-b border-neutral-200 uppercase cursor-pointer sticky top-0 backdrop-blur-[90px]"
             onClick={() => handleSort(index)}
           >
             {column}
-            <img src="/src/app/filter.svg" alt="Click to Filter" />
-            <span>
-              {sortColumn === index
-                ? sortDirection === "asc"
-                  ? "↓"
-                  : "↑"
-                : ""}
+            <span className="flex items-center">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+              </svg>
+
+              <span>
+                {sortColumn === index
+                  ? sortDirection === "asc"
+                    ? "↓"
+                    : "↑"
+                  : ""}
+              </span>
             </span>
           </div>
         ))}
-        {columns.map((_, index: any) => (
+        {columns.map((_: any, index: any) => (
           <div
             key={index}
             className="p-2 border-b border-slate-900 sticky top-14 backdrop-blur-3xl"
