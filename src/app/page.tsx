@@ -17,6 +17,11 @@ export default function Home() {
     }
   };
 
+  const resetData = () => {
+    setJsonData([]);
+    setFilename("");
+  };
+
   return (
     <>
       <div
@@ -46,7 +51,11 @@ export default function Home() {
           ✤Visigrid
         </div>
         <div className="upload-file-button ">
-          <UploadButton onFileLoaded={handleFileLoaded} />
+          <UploadButton
+            onFileLoaded={handleFileLoaded}
+            resetData={resetData}
+            isDataLoaded={jsonData.length > 0}
+          />
         </div>
       </nav>
 

@@ -23,7 +23,13 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   ); // remove extension
   const [fileExtension] = useState(filename.split(".").pop()); // get extension
 
-  const columns = tableData[0].slice(0, colsPerPage);
+  const [pendingRowsPerPage, setPendingRowsPerPage] = useState(rowsPerPage);
+  const [pendingColsPerPage, setPendingColsPerPage] = useState(colsPerPage);
+
+  const columns = colsPerPage
+    ? tableData[0].slice(0, colsPerPage)
+    : tableData[0];
+
   const rows = tableData.slice(1);
 
   // Effect to update columns and rows on page whenever tableData changes
@@ -66,14 +72,17 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   });
 
   // Calculate total pages
-  const totalPages = Math.ceil(rows.length / rowsPerPage);
+
+  const totalPages = rowsPerPage ? Math.ceil(rows.length / rowsPerPage) : 1;
 
   // Calculate start and end row index
   const startRowIndex = (currentPage - 1) * rowsPerPage;
   const endRowIndex = startRowIndex + rowsPerPage;
 
   // Slice rows for the current page
-  const rowsOnCurrentPage = sortedRows.slice(startRowIndex, endRowIndex);
+  const rowsOnCurrentPage = rowsPerPage
+    ? sortedRows.slice(startRowIndex, endRowIndex)
+    : sortedRows;
 
   const handleCellChange = (
     rowIndex: number,
@@ -89,6 +98,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
     const updatedSearchTerms = [...searchTerms];
     updatedSearchTerms[index] = value;
     setSearchTerms(updatedSearchTerms);
+    setCurrentPage(1);
   };
 
   const handleSort = (index: number) => {
@@ -100,13 +110,13 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
     setFilename(e.target.value);
   };
 
-  const handleRowsChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(Number(e.target.value));
-  };
+  // const handleRowsChange = (e: ChangeEvent<HTMLInputElement>) => {
+  //   setRowsPerPage(Number(e.target.value));
+  // };
 
-  const handleColsChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setColsPerPage(Number(e.target.value));
-  };
+  // const handleColsChange = (e: ChangeEvent<HTMLInputElement>) => {
+  //   setColsPerPage(Number(e.target.value));
+  // };
 
   const downloadTableData = () => {
     const fileType = fileExtension;
@@ -138,7 +148,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
         className="mt-4 mx-auto p-1 h-[48px] text-black text-sm
           flex justify-between items-center font-normal tracking-wide border border-solid border-black rounded-md w-5/6 backdrop-blur-2xl"
       >
-        <span className="mx-4 flex justify-between w-[260px] ">
+        <span className="mx-4 flex justify-between w-[360px] ">
           <span className="flex justify-center items-center">
             <label htmlFor="rows">Rows</label>
             <input
@@ -146,8 +156,8 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
               className="w-[72px] ml-2 p-2 rounded-md bg-transparent text-sm outline-none hover:border-2 border-indigo-900"
               type="text"
               placeholder="Enter no of Rows"
-              value={rowsPerPage}
-              onChange={handleRowsChange}
+              value={pendingRowsPerPage}
+              onChange={(e) => setPendingRowsPerPage(Number(e.target.value))}
             />
           </span>
           <span className="flex justify-center items-center">
@@ -157,10 +167,29 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
               className="w-[72px] ml-2 p-2 rounded-md bg-transparent text-sm outline-none hover:border-2 border-indigo-900"
               type="text"
               placeholder="Enter no of cols"
-              value={colsPerPage}
-              onChange={handleColsChange}
+              value={pendingColsPerPage}
+              onChange={(e) => setPendingColsPerPage(Number(e.target.value))}
             />
           </span>
+          <button
+            className="outline-none text-base p-2 border border-gray-600 rounded-md tracking-tighter  "
+            onClick={() => {
+              setRowsPerPage(pendingRowsPerPage);
+              setColsPerPage(pendingColsPerPage);
+            }}
+            style={{
+              boxShadow: `rgba(99, 99, 99, 0.2) 0px 2px 8px 0px`,
+              transition: "box-shadow .3s ease",
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.boxShadow = "0 0 10px rgba(0,0,0,0.3)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.boxShadow = "0 0 5px rgba(0,0,0,0.1)")
+            }
+          >
+            View Now →
+          </button>
         </span>
         <span className="file_download flex items-center justify-between">
           <span className="mr-4">
@@ -176,6 +205,16 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
           <button
             className="outline-none text-lg px-[2.8rem] py-1 border-2 border-indigo-800 rounded-md"
             onClick={downloadTableData}
+            style={{
+              boxShadow: `rgba(50, 50, 93, 0.25) 0px 2px 5px -1px`,
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.boxShadow =
+                "0 0 10px rgba(63, 34, 168,0.45)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.boxShadow = "0 0 5px rgba(0,0,0,0.24)")
+            }
           >
             Download
           </button>
@@ -235,18 +274,20 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
           ))}
 
           {rowsOnCurrentPage.map((row, rowIndex) =>
-            row.map((value: any, colIndex: any) => (
-              <div key={`${rowIndex}-${colIndex}`}>
-                <input
-                  className="bg-transparent px-4 py-2 outline-2	outline-blue-800 rounded-md	border-none	"
-                  type="text"
-                  value={value}
-                  onChange={(e) =>
-                    handleCellChange(rowIndex, colIndex, e.target.value)
-                  }
-                />
-              </div>
-            ))
+            (colsPerPage ? row.slice(0, colsPerPage) : row).map(
+              (value: any, colIndex: any) => (
+                <div key={`${rowIndex}-${colIndex}`}>
+                  <input
+                    className="bg-transparent px-4 py-2 outline-2outline-blue-800 rounded-mdborder-none"
+                    type="text"
+                    value={value}
+                    onChange={(e) =>
+                      handleCellChange(rowIndex, colIndex, e.target.value)
+                    }
+                  />
+                </div>
+              )
+            )
           )}
         </div>
       </div>
