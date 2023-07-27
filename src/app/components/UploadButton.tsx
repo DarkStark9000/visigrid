@@ -1,10 +1,8 @@
-// app/components/UploadButton.tsx
-
 import { ChangeEvent, FC } from "react";
 import Papa from "papaparse";
 
 interface UploadButtonProps {
-  onFileLoaded: (data: any) => void;
+  onFileLoaded: (data: any, filename: string) => void;
 }
 
 const UploadButton: FC<UploadButtonProps> = ({ onFileLoaded }) => {
@@ -19,11 +17,11 @@ const UploadButton: FC<UploadButtonProps> = ({ onFileLoaded }) => {
 
           if (file.type === "application/json") {
             const data = JSON.parse(result);
-            onFileLoaded(data);
+            onFileLoaded(data, file.name);
           } else if (file.type === "text/csv") {
             Papa.parse(result, {
               complete: (results) => {
-                onFileLoaded(results.data);
+                onFileLoaded(results.data, file.name);
               },
             });
           } else {
@@ -40,7 +38,12 @@ const UploadButton: FC<UploadButtonProps> = ({ onFileLoaded }) => {
   };
 
   return (
-    <label className="inline-block px-8 py-4 bg-indigo-600 text-white cursor-pointer rounded text-lg font-normal tracking-normal shadow-LG">
+    <label
+      className="inline-block px-8 py-4 bg-indigo-700 text-white cursor-pointer rounded text-xl font-normal tracking-normal hover:bg-blue-600"
+      style={{
+        boxShadow: `rgba(0, 0, 0, 0.24) 0px 3px 8px`,
+      }}
+    >
       ↑ Open File
       <input
         type="file"
