@@ -26,6 +26,8 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   const [pendingRowsPerPage, setPendingRowsPerPage] = useState(rowsPerPage);
   const [pendingColsPerPage, setPendingColsPerPage] = useState(colsPerPage);
 
+  const [globalSearchTerm, setGlobalSearchTerm] = useState("");
+
   const columns = colsPerPage
     ? tableData[0].slice(0, colsPerPage)
     : tableData[0];
@@ -40,8 +42,19 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
     setSearchTerms(Array(columns.length).fill("")); // reset search terms
   }, [tableData]);
 
-  const searchedRows = rows.filter((row) =>
-    searchTerms.every((term, index) => !term || `${row[index]}`.includes(term))
+  // const searchedRows = rows.filter((row) =>
+  //   searchTerms.every((term, index) => !term || `${row[index]}`.includes(term))
+  // );
+
+  const searchedRows = rows.filter(
+    (row) =>
+      searchTerms.every(
+        (term, index) => !term || `${row[index]}`.includes(term)
+      ) &&
+      (globalSearchTerm === "" ||
+        row.some((cell: any) =>
+          String(cell).toLowerCase().includes(globalSearchTerm.toLowerCase())
+        ))
   );
 
   const sortedRows = [...searchedRows].sort((a, b) => {
@@ -106,6 +119,10 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
     setSortDirection(sortDirection === "asc" ? "desc" : "asc");
   };
 
+  const handleGlobalSearch = (event: ChangeEvent<HTMLInputElement>) => {
+    setGlobalSearchTerm(event.target.value);
+  };
+
   const handleFilenameChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFilename(e.target.value);
   };
@@ -148,12 +165,12 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
         className="mt-4 mx-auto p-1 h-[48px] text-black text-sm
           flex justify-between items-center font-normal tracking-wide border border-solid border-black rounded-md w-5/6 backdrop-blur-2xl"
       >
-        <span className="mx-4 flex justify-between w-[360px] ">
+        <span className="px-2 flex justify-between w-[360px] ">
           <span className="flex justify-center items-center">
             <label htmlFor="rows">Rows</label>
             <input
               name="rows"
-              className="w-[72px] ml-2 p-2 rounded-md bg-transparent text-sm outline-none hover:border-2 border-indigo-900"
+              className="w-[72px] ml-2 p-2 rounded-md bg-transparent text-sm outline-none border border-slate-200 hover:border-2"
               type="text"
               placeholder="Enter no of Rows"
               value={pendingRowsPerPage}
@@ -164,7 +181,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
             <label htmlFor="cols">Cols</label>
             <input
               name="cols"
-              className="w-[72px] ml-2 p-2 rounded-md bg-transparent text-sm outline-none hover:border-2 border-indigo-900"
+              className="w-[72px] ml-2 p-2 rounded-md bg-transparent text-sm outline-none border border-slate-200 hover:border-2"
               type="text"
               placeholder="Enter no of cols"
               value={pendingColsPerPage}
@@ -172,7 +189,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
             />
           </span>
           <button
-            className="outline-none text-base p-2 border border-gray-600 rounded-md tracking-tighter  "
+            className="outline-none text-base m-1 p-1 border border-gray-600 rounded-md tracking-tighter  "
             onClick={() => {
               setRowsPerPage(pendingRowsPerPage);
               setColsPerPage(pendingColsPerPage);
@@ -191,6 +208,27 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
             View Now →
           </button>
         </span>
+
+        <span>
+          <input
+            className="m-2 p-2 w-full rounded-md bg-transparent outline-none text-sm border border-slate-400 hover:border-2"
+            type="text"
+            value={globalSearchTerm}
+            onChange={handleGlobalSearch}
+            placeholder="Search anything..."
+            style={{
+              boxShadow: `rgba(99, 99, 99, 0.2) 0px 2px 8px 0px`,
+              transition: "box-shadow .3s ease",
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.boxShadow = "0 0 10px rgba(0,0,0,0.3)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.boxShadow = "0 0 5px rgba(0,0,0,0.1)")
+            }
+          />
+        </span>
+
         <span className="file_download flex items-center justify-between">
           <span className="mr-4">
             <label htmlFor="file_name">Filename</label>
