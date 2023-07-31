@@ -180,6 +180,33 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
     setFilename(e.target.value);
   };
 
+  let draggedIdx: number | null = null;
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    draggedIdx = index;
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+
+    // Update the tableData state by swapping the positions of the columns
+    if (draggedIdx !== null) {
+      const newTableData = tableData.map((row) => {
+        const temp = row[draggedIdx as number];
+        row[draggedIdx as number] = row[index];
+        row[index] = temp;
+        return row;
+      });
+
+      setTableData(newTableData);
+    }
+  };
+
   const downloadTableData = () => {
     const fileType = fileExtension;
     let data: BlobPart;
@@ -311,9 +338,46 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
           className="grid gap-0"
           style={{ gridTemplateColumns: `repeat(${columns.length}, 1fr)` }}
         >
+          {/* {columns.map((column: any, index: any) => (
+            <div
+              key={index}
+              className="flex justify-between items-center font-bold p-3 uppercase cursor-pointer sticky top-0 bg-slate-50"
+              onClick={() => handleSort(index)}
+            >
+              {column}
+              <span className="flex items-center">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                </svg>
+
+                <span>
+                  {sortColumn === index
+                    ? sortDirection === "asc"
+                      ? "↓"
+                      : "↑"
+                    : ""}
+                </span>
+              </span>
+            </div>
+          ))} */}
+
           {columns.map((column: any, index: any) => (
             <div
               key={index}
+              draggable="true"
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDrop={(e) => handleDrop(e, index)}
               className="flex justify-between items-center font-bold p-3 uppercase cursor-pointer sticky top-0 bg-slate-50"
               onClick={() => handleSort(index)}
             >
@@ -443,7 +507,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
               (value: any, colIndex: any) => (
                 <div key={`${rowIndex}-${colIndex}`}>
                   <input
-                    className="bg-transparent px-4 py-2 outline-2outline-blue-800 rounded-mdborder-none"
+                    className="bg-transparent px-4 py-2 outline-2 outline-blue-800 rounded-md border-none"
                     type="text"
                     value={value}
                     onChange={(e) =>
