@@ -1,4 +1,4 @@
-import { FC, useState, useEffect, ChangeEvent } from "react";
+import { FC, useState, useEffect, ChangeEvent, useRef } from "react";
 import Pagination from "./Pagination";
 import jsFileDownload from "js-file-download";
 import * as XLSX from "xlsx";
@@ -37,21 +37,48 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
 
   const rows = tableData.slice(1);
 
+  // original code before web workers
+  // useEffect(() => {
+  //   const columns = tableData[0].slice(0, colsPerPage);
+  //   const rows = tableData.slice(1);
+
+  //   setSearchTerms(Array(columns.length).fill(""));
+
+  //   let newUniqueValues = Array(columns.length)
+  //     .fill(null)
+  //     .map(() => new Set<string>());
+
+  //   for (let i = 0; i < rows.length; i++) {
+  //     for (let j = 0; j < rows[i].length; j++) {
+  //       // Add unique values to the corresponding Set
+  //       newUniqueValues[j].add(rows[i][j]);
+  //     }
+  //   }
+
+  //   setUniqueValues(newUniqueValues);
+  //   setSelectedValues(newUniqueValues.map(() => new Set()));
+  // }, [tableData]);
+
+  // new code to tackle web workers
   useEffect(() => {
-    const columns = tableData[0].slice(0, colsPerPage);
-    const rows = tableData.slice(1);
+    const worker = new Worker("/worker.js");
 
-    setSearchTerms(Array(columns.length).fill(""));
+    worker.onmessage = (event) => {
+      const newUniqueValues = event.data;
+      setUniqueValues(
+        newUniqueValues.map(
+          (values: Iterable<unknown> | null | undefined) => new Set(values)
+        )
+      );
+      setSelectedValues(newUniqueValues.map(() => new Set()));
+    };
 
-    let newUniqueValues = Array(columns.length).fill(new Set());
-    for (let i = 0; i < rows.length; i++) {
-      for (let j = 0; j < rows[i].length; j++) {
-        newUniqueValues[j].add(rows[i][j]);
-      }
-    }
-    setUniqueValues(newUniqueValues);
-    setSelectedValues(newUniqueValues.map(() => new Set()));
-  }, [tableData]);
+    worker.postMessage({ rows: tableData, colsPerPage });
+
+    return () => {
+      worker.terminate();
+    };
+  }, [tableData, colsPerPage]);
 
   const handleCheckboxChange = (
     colIndex: number,
@@ -205,7 +232,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
             />
           </span>
           <button
-            className="outline-none text-base m-1 p-1 border border-gray-600 rounded-md tracking-tighter  "
+            className="outline-none text-xs m-1 p-2 border border-gray-600 rounded-md tracking-tight  "
             onClick={() => {
               setRowsPerPage(pendingRowsPerPage);
               setColsPerPage(pendingColsPerPage);
@@ -283,7 +310,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
           {columns.map((column: any, index: any) => (
             <div
               key={index}
-              className="flex justify-between items-center font-bold p-4 border-b border-neutral-200 uppercase cursor-pointer sticky top-0 bg-slate-50"
+              className="flex justify-between items-center font-bold p-3 uppercase cursor-pointer sticky top-0 bg-slate-50"
               onClick={() => handleSort(index)}
             >
               {column}
@@ -312,41 +339,100 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
               </span>
             </div>
           ))}
-          {columns.map((_: any, index: any) => (
-            <div
-              key={index}
-              className="flex items-center justify-between p-2 border-b border-slate-900 sticky top-14 bg-slate-50"
-            >
-              <input
-                className=" p-2 outline-1 rounded-sm	border-none	"
-                type="text"
-                value={searchTerms[index] || ""}
-                onChange={(e) => handleSearch(index, e.target.value)}
-                placeholder="put your search term"
-              />
-              <div className="dropdown item-select-filter">
-                <button className="dropbtn">▼</button>
-                <div className="dropdown-content border border-black mt-1 rounded-md">
-                  {uniqueValues[index] ? (
-                    Array.from(uniqueValues[index]).map((value: string) => (
-                      <div className="checkbox-option" key={value}>
-                        <input
-                          type="checkbox"
-                          value={value}
-                          onChange={(e) =>
-                            handleCheckboxChange(index, value, e.target.checked)
-                          }
-                        />
-                        <label>{value}</label>
+
+          {columns.map((_: any, index: any) => {
+            const [isOpen, setIsOpen] = useState(false);
+            const dropdownRef = useRef<HTMLDivElement>(null);
+
+            useEffect(() => {
+              const handleClickOutside = (event: { target: any }) => {
+                if (
+                  dropdownRef.current &&
+                  !dropdownRef.current.contains(event.target)
+                ) {
+                  setIsOpen(false);
+                }
+              };
+
+              document.addEventListener("mousedown", handleClickOutside);
+              return () => {
+                document.removeEventListener("mousedown", handleClickOutside);
+              };
+            }, []);
+
+            return (
+              <div
+                key={index}
+                className="flex items-center justify-between p-2 border-b border-gray-200 sticky top-12 bg-slate-50"
+              >
+                <input
+                  className="px-2 py-1 outline-none border rounded-md"
+                  type="text"
+                  value={searchTerms[index] || ""}
+                  onChange={(e) => handleSearch(index, e.target.value)}
+                  placeholder="Search term"
+                />
+                <div
+                  className="relative inline-block text-left"
+                  ref={dropdownRef}
+                >
+                  <div>
+                    <button
+                      type="button"
+                      className="flex justify-center w-full rounded-md border border-gray-300 py-[6px] px-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500"
+                      id="options-menu"
+                      aria-expanded="true"
+                      aria-haspopup="true"
+                      onClick={() => setIsOpen(!isOpen)}
+                    >
+                      ▾
+                    </button>
+                  </div>
+
+                  {isOpen && (
+                    <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 overflow-auto max-h-60">
+                      <div
+                        className="py-1"
+                        role="menu"
+                        aria-orientation="vertical"
+                        aria-labelledby="options-menu"
+                      >
+                        {uniqueValues[index] ? (
+                          Array.from(uniqueValues[index]).map(
+                            (value: string) => (
+                              <div
+                                className="checkbox-option px-4 py-2"
+                                key={value}
+                              >
+                                <input
+                                  type="checkbox"
+                                  value={value}
+                                  onChange={(e) =>
+                                    handleCheckboxChange(
+                                      index,
+                                      value,
+                                      e.target.checked
+                                    )
+                                  }
+                                />
+                                <label className="ml-2 text-gray-700 text-sm">
+                                  {value}
+                                </label>
+                              </div>
+                            )
+                          )
+                        ) : (
+                          <p className="px-4 py-2 text-gray-700 text-sm">
+                            Loading...
+                          </p>
+                        )}
                       </div>
-                    ))
-                  ) : (
-                    <p>Loading...</p>
+                    </div>
                   )}
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {rowsOnCurrentPage.map((row, rowIndex) =>
             (colsPerPage ? row.slice(0, colsPerPage) : row).map(
