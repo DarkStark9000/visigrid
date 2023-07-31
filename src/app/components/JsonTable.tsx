@@ -1,5 +1,4 @@
-import { FC, useState, useEffect, ChangeEvent, useRef } from "react";
-// import Pagination from "./Pagination";
+import { FC, useState, useEffect, ChangeEvent, useRef, createRef } from "react";
 import jsFileDownload from "js-file-download";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
@@ -31,39 +30,17 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   const [displayedRows, setDisplayedRows] = useState(20);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
   const columns = colsPerPage
     ? tableData[0].slice(0, colsPerPage)
     : tableData[0];
 
   const rows = tableData.slice(1);
 
-  // original code before web workers
-  // useEffect(() => {
-  //   const columns = tableData[0].slice(0, colsPerPage);
-  //   const rows = tableData.slice(1);
+  const [isOpen, setIsOpen] = useState(new Array(columns.length).fill(false));
+  const dropdownRef = useRef(columns.map(() => createRef<HTMLDivElement>()));
 
-  //   setSearchTerms(Array(columns.length).fill(""));
-
-  //   let newUniqueValues = Array(columns.length)
-  //     .fill(null)
-  //     .map(() => new Set<string>());
-
-  //   for (let i = 0; i < rows.length; i++) {
-  //     for (let j = 0; j < rows[i].length; j++) {
-  //       // Add unique values to the corresponding Set
-  //       newUniqueValues[j].add(rows[i][j]);
-  //     }
-  //   }
-
-  //   setUniqueValues(newUniqueValues);
-  //   setSelectedValues(newUniqueValues.map(() => new Set()));
-  // }, [tableData]);
-
-  // new code to tackle web workers
   useEffect(() => {
+    // web workers
     const worker = new Worker("/worker.js");
 
     worker.onmessage = (event) => {
@@ -78,6 +55,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
 
     worker.postMessage({ rows: tableData, colsPerPage });
 
+    // to handle scrolling for lazy loading
     const handleScroll = () => {
       if (containerRef.current) {
         const { scrollHeight, scrollTop, clientHeight } = containerRef.current;
@@ -90,10 +68,18 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
       containerRef.current.addEventListener("scroll", handleScroll);
     }
 
+    // to close dropdown when clicked outside
     const handleClickOutside = (event: { target: any }) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
+      const newIsOpen = isOpen.map((open, index) => {
+        if (
+          dropdownRef.current[index].current &&
+          !dropdownRef.current[index].current.contains(event.target)
+        ) {
+          return false;
+        }
+        return open;
+      });
+      setIsOpen(newIsOpen);
     };
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -402,22 +388,26 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
                 />
                 <div
                   className="relative inline-block text-left"
-                  ref={dropdownRef}
+                  ref={dropdownRef.current[index]}
                 >
                   <div>
                     <button
                       type="button"
+                      onClick={() => {
+                        const newIsOpen = [...isOpen];
+                        newIsOpen[index] = !newIsOpen[index];
+                        setIsOpen(newIsOpen);
+                      }}
                       className="flex justify-center w-full rounded-md border border-gray-300 py-[6px] px-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500"
                       id="options-menu"
                       aria-expanded="true"
                       aria-haspopup="true"
-                      onClick={() => setIsOpen(!isOpen)}
                     >
                       ▾
                     </button>
                   </div>
 
-                  {isOpen && (
+                  {isOpen[index] && (
                     <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 overflow-auto max-h-60">
                       <div
                         className="py-1"
