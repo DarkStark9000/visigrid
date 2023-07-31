@@ -28,28 +28,52 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
 
   const [globalSearchTerm, setGlobalSearchTerm] = useState("");
 
+  const [uniqueValues, setUniqueValues] = useState<Array<Set<string>>>([]);
+  const [selectedValues, setSelectedValues] = useState<Array<Set<string>>>([]);
+
   const columns = colsPerPage
     ? tableData[0].slice(0, colsPerPage)
     : tableData[0];
 
   const rows = tableData.slice(1);
 
-  // Effect to update columns and rows on page whenever tableData changes
   useEffect(() => {
     const columns = tableData[0].slice(0, colsPerPage);
     const rows = tableData.slice(1);
 
-    setSearchTerms(Array(columns.length).fill("")); // reset search terms
+    setSearchTerms(Array(columns.length).fill(""));
+
+    let newUniqueValues = Array(columns.length).fill(new Set());
+    for (let i = 0; i < rows.length; i++) {
+      for (let j = 0; j < rows[i].length; j++) {
+        newUniqueValues[j].add(rows[i][j]);
+      }
+    }
+    setUniqueValues(newUniqueValues);
+    setSelectedValues(newUniqueValues.map(() => new Set()));
   }, [tableData]);
 
-  // const searchedRows = rows.filter((row) =>
-  //   searchTerms.every((term, index) => !term || `${row[index]}`.includes(term))
-  // );
+  const handleCheckboxChange = (
+    colIndex: number,
+    value: string,
+    checked: boolean
+  ) => {
+    let newSelectedValues = [...selectedValues];
+    if (checked) {
+      newSelectedValues[colIndex].add(value);
+    } else {
+      newSelectedValues[colIndex].delete(value);
+    }
+    setSelectedValues(newSelectedValues);
+  };
 
   const searchedRows = rows.filter(
     (row) =>
       searchTerms.every(
         (term, index) => !term || `${row[index]}`.includes(term)
+      ) &&
+      selectedValues.every(
+        (set, index) => set.size === 0 || set.has(row[index])
       ) &&
       (globalSearchTerm === "" ||
         row.some((cell: any) =>
@@ -126,14 +150,6 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   const handleFilenameChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFilename(e.target.value);
   };
-
-  // const handleRowsChange = (e: ChangeEvent<HTMLInputElement>) => {
-  //   setRowsPerPage(Number(e.target.value));
-  // };
-
-  // const handleColsChange = (e: ChangeEvent<HTMLInputElement>) => {
-  //   setColsPerPage(Number(e.target.value));
-  // };
 
   const downloadTableData = () => {
     const fileType = fileExtension;
@@ -299,7 +315,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
           {columns.map((_: any, index: any) => (
             <div
               key={index}
-              className="p-2 border-b border-slate-900 sticky top-14 bg-slate-50"
+              className="flex items-center justify-between p-2 border-b border-slate-900 sticky top-14 bg-slate-50"
             >
               <input
                 className=" p-2 outline-1 rounded-sm	border-none	"
@@ -308,6 +324,27 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
                 onChange={(e) => handleSearch(index, e.target.value)}
                 placeholder="put your search term"
               />
+              <div className="dropdown item-select-filter">
+                <button className="dropbtn">▼</button>
+                <div className="dropdown-content border border-black mt-1 rounded-md">
+                  {uniqueValues[index] ? (
+                    Array.from(uniqueValues[index]).map((value: string) => (
+                      <div className="checkbox-option" key={value}>
+                        <input
+                          type="checkbox"
+                          value={value}
+                          onChange={(e) =>
+                            handleCheckboxChange(index, value, e.target.checked)
+                          }
+                        />
+                        <label>{value}</label>
+                      </div>
+                    ))
+                  ) : (
+                    <p>Loading...</p>
+                  )}
+                </div>
+              </div>
             </div>
           ))}
 
