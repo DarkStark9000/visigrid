@@ -28,6 +28,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@types/papaparse": "^5.3.7"
+    "@types/papaparse": "^5.3.7",
+    "@types/react-window": "^1.8.5"
   }
 }
