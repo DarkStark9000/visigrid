@@ -1,4 +1,12 @@
-import { FC, useState, useEffect, ChangeEvent, useRef, createRef } from "react";
+import {
+  FC,
+  useState,
+  useEffect,
+  ChangeEvent,
+  useRef,
+  createRef,
+  useMemo,
+} from "react";
 import jsFileDownload from "js-file-download";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
@@ -15,10 +23,11 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   const [searchTerms, setSearchTerms] = useState<string[]>([]);
   const [colsPerPage, setColsPerPage] = useState(10);
 
+  const [filenameParts, setFilenameParts] = useState(filename.split("."));
   const [filenameState, setFilename] = useState(
-    filename.split(".").slice(0, -1).join(".")
-  ); // remove extension
-  const [fileExtension] = useState(filename.split(".").pop()); // get extension
+    filenameParts.slice(0, -1).join(".")
+  );
+  const [fileExtension] = useState(filenameParts.pop());
 
   const [pendingColsPerPage, setPendingColsPerPage] = useState(colsPerPage);
 
@@ -40,7 +49,6 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   const dropdownRef = useRef(columns.map(() => createRef<HTMLDivElement>()));
 
   useEffect(() => {
-    // web workers
     const worker = new Worker("/worker.js");
 
     worker.onmessage = (event) => {
@@ -53,57 +61,57 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
       setSelectedValues(newUniqueValues.map(() => new Set()));
     };
 
+    worker.onerror = (error) => {
+      console.error("An error occurred in the Web Worker:", error);
+    };
+
     worker.postMessage({ rows: tableData, colsPerPage });
 
-    // to handle scrolling for lazy loading
-    const handleScroll = () => {
-      if (containerRef.current) {
-        const { scrollHeight, scrollTop, clientHeight } = containerRef.current;
-        if (scrollTop + clientHeight >= scrollHeight) {
-          setDisplayedRows((displayedRows) => displayedRows + 20);
-        }
-      }
-    };
-    if (containerRef.current) {
-      containerRef.current.addEventListener("scroll", handleScroll);
-    }
-
-    // to close dropdown when clicked outside
-    const handleClickOutside = (event: { target: any }) => {
-      const newIsOpen = isOpen.map((open, index) => {
-        if (
-          dropdownRef.current[index].current &&
-          !dropdownRef.current[index].current.contains(event.target)
-        ) {
-          return false;
-        }
-        return open;
-      });
-      setIsOpen(newIsOpen);
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      if (containerRef.current) {
-        containerRef.current.removeEventListener("scroll", handleScroll);
-      }
+      worker.terminate();
     };
   }, [tableData, colsPerPage]);
+
+  // to handle scrolling for lazy loading
+  const handleScroll = () => {
+    if (containerRef.current) {
+      const { scrollHeight, scrollTop, clientHeight } = containerRef.current;
+      if (scrollTop + clientHeight >= scrollHeight) {
+        setDisplayedRows((displayedRows) => displayedRows + 20);
+      }
+    }
+  };
+
+  // to close dropdown when clicked outside
+  const handleClickOutside = (event: { target: any }) => {
+    const newIsOpen = isOpen.map((open, index) => {
+      if (
+        dropdownRef.current[index].current &&
+        !dropdownRef.current[index].current.contains(event.target)
+      ) {
+        return false;
+      }
+      return open;
+    });
+    setIsOpen(newIsOpen);
+  };
 
   const handleCheckboxChange = (
     colIndex: number,
     value: string,
     checked: boolean
   ) => {
-    let newSelectedValues = [...selectedValues];
-    if (checked) {
-      newSelectedValues[colIndex].add(value);
-    } else {
-      newSelectedValues[colIndex].delete(value);
-    }
-    setSelectedValues(newSelectedValues);
+    setSelectedValues((currentSelectedValues) => {
+      const newSelectedValues = [...currentSelectedValues];
+
+      if (checked) {
+        newSelectedValues[colIndex].add(value);
+      } else {
+        newSelectedValues[colIndex].delete(value);
+      }
+
+      return newSelectedValues;
+    });
   };
 
   const searchedRows = rows.filter(
@@ -120,32 +128,34 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
         ))
   );
 
-  const sortedRows = [...searchedRows].sort((a, b) => {
-    if (sortColumn !== null) {
-      const valA = a[sortColumn];
-      const valB = b[sortColumn];
-      const numA = Number(valA);
-      const numB = Number(valB);
-      const dateA = new Date(valA);
-      const dateB = new Date(valB);
+  const sortedRows = useMemo(() => {
+    return [...searchedRows].sort((a, b) => {
+      if (sortColumn !== null) {
+        const valA = a[sortColumn];
+        const valB = b[sortColumn];
+        const numA = Number(valA);
+        const numB = Number(valB);
+        const dateA = new Date(valA);
+        const dateB = new Date(valB);
 
-      if (!isNaN(numA) && !isNaN(numB)) {
-        // If values are numbers, compare as numbers
-        return sortDirection === "asc" ? numA - numB : numB - numA;
-      } else if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
-        // If values are dates, compare as dates
-        return sortDirection === "asc"
-          ? dateA.getTime() - dateB.getTime()
-          : dateB.getTime() - dateA.getTime();
-      } else {
-        // Compare as strings
-        return sortDirection === "asc"
-          ? `${valA}`.localeCompare(`${valB}`)
-          : `${valB}`.localeCompare(`${valA}`);
+        if (!isNaN(numA) && !isNaN(numB)) {
+          // If values are numbers, compare as numbers
+          return sortDirection === "asc" ? numA - numB : numB - numA;
+        } else if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
+          // If values are dates, compare as dates
+          return sortDirection === "asc"
+            ? dateA.getTime() - dateB.getTime()
+            : dateB.getTime() - dateA.getTime();
+        } else {
+          // Compare as strings
+          return sortDirection === "asc"
+            ? `${valA}`.localeCompare(`${valB}`)
+            : `${valB}`.localeCompare(`${valA}`);
+        }
       }
-    }
-    return 0;
-  });
+      return 0;
+    });
+  }, [searchedRows, sortColumn, sortDirection]);
 
   const rowsOnCurrentPage = sortedRows.slice(0, displayedRows);
 
@@ -175,7 +185,9 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   };
 
   const handleFilenameChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setFilename(e.target.value);
+    const newFilename = e.target.value;
+    setFilename(newFilename);
+    setFilenameParts(newFilename.split("."));
   };
 
   let draggedIdx: number | null = null;
@@ -225,12 +237,11 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
       default:
         return;
     }
-
-    jsFileDownload(data, `${filenameState}.${fileExtension}`);
+    jsFileDownload(data, `${filenameState}.${fileType}`);
   };
 
   return (
-    <>
+    <div onMouseDown={handleClickOutside}>
       <div
         className="mt-4 mx-auto p-1 h-[48px] text-black text-sm
           flex justify-between items-center font-normal tracking-wide border border-solid border-black rounded-md w-5/6 backdrop-blur-2xl"
@@ -331,6 +342,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
       <div
         className="overflow-auto h-custom w-5/6 bg-gray-50 bg-opacity-60 backdrop-blur-sm mx-auto mt-4 border border-black rounded-lg"
         ref={containerRef}
+        onScroll={handleScroll}
       >
         <div
           className="grid gap-0"
@@ -470,7 +482,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
