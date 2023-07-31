@@ -16,21 +16,20 @@ const UploadButton: FC<UploadButtonProps> = ({
 
   const handleUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    event.target.value = ""; // Reset the value of the input
-
+    event.target.value = ""; // Reset
     if (file) {
       if (isDataLoaded) {
-        // Confirm with the user if they want to load a new file
+        // Confirm with user
         const confirm = window.confirm(
           "Are you sure you want to load a new file? This will replace the current data."
         );
 
-        // If the user cancels, don't proceed with file loading
+        // user cancels
         if (!confirm) {
           return;
         }
 
-        // If the user confirms, reset the current data
+        // If user confirms
         resetData();
       }
 
@@ -52,7 +51,8 @@ const UploadButton: FC<UploadButtonProps> = ({
             setIsModalOpen(true);
           }
         } catch (e) {
-          console.error("Could not parse file.");
+          // console.error("Could not parse file.");
+          setIsModalOpen(true);
         }
       };
       reader.readAsText(file);
@@ -82,7 +82,7 @@ const UploadButton: FC<UploadButtonProps> = ({
             <div className="py-4 text-left px-6">
               <div className="flex justify-between items-center pb-3">
                 <p className="text-2xl font-semibold text-red-600">
-                  Invalid File Type
+                  Invalid File
                 </p>
                 <div
                   className="cursor-pointer z-50"
@@ -100,7 +100,7 @@ const UploadButton: FC<UploadButtonProps> = ({
                 </div>
               </div>
               <p className="text-base font-medium tracking-tight">
-                Please upload a JSON or CSV file.
+                Please upload a valid & correctly formatted JSON or CSV file.
               </p>
               <div className="flex justify-end pt-2">
                 <button
