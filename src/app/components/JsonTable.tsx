@@ -39,6 +39,9 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   const [displayedRows, setDisplayedRows] = useState(20);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const [debouncedColsPerPage, setDebouncedColsPerPage] =
+    useState(pendingColsPerPage);
+
   const columns = colsPerPage
     ? tableData[0].slice(0, colsPerPage)
     : tableData[0];
@@ -80,6 +83,20 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
       worker.terminate();
     };
   }, [tableData, colsPerPage]);
+
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      setDebouncedColsPerPage(pendingColsPerPage);
+    }, 500); // 500ms delay
+
+    return () => {
+      clearTimeout(timerId);
+    };
+  }, [pendingColsPerPage]);
+
+  useEffect(() => {
+    setColsPerPage(debouncedColsPerPage);
+  }, [debouncedColsPerPage]);
 
   // to handle scrolling for lazy loading
   const handleScroll = () => {
@@ -256,16 +273,17 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
           flex justify-between items-center font-normal tracking-wide border border-solid border-black rounded-md w-5/6 backdrop-blur-2xl"
       >
         <button
+          className="p-2 underline underline-offset-4 mx-4  "
           onClick={() => setSelectedValues(uniqueValues.map(() => new Set()))}
         >
           Reset Filters
         </button>
-        <span className="px-2 flex justify-between w-[360px] ">
+        <span className="px-1 flex justify-between w-[240px]  ">
           <span className="flex justify-center items-center">
             <label htmlFor="rows">Rows</label>
             <input
               name="rows"
-              className="w-[72px] ml-2 p-2 rounded-md bg-transparent text-sm outline-none  "
+              className="w-[72px] p-2 rounded-md bg-transparent text-sm outline-none  "
               type="text"
               placeholder="Enter no of Rows"
               value={rows.length}
@@ -275,32 +293,20 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
           <span className="flex justify-center items-center">
             <label htmlFor="cols">Cols</label>
             <input
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.boxShadow = "0 0 10px rgba(0,0,0,0.3)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.boxShadow = "0 0 5px rgba(0,0,0,0.1)")
+              }
               name="cols"
-              className="w-[72px] ml-2 p-2 rounded-md bg-transparent text-sm outline-none border border-slate-200 hover:border-2"
+              className="w-[72px] ml-2 p-2 rounded-md bg-transparent text-sm outline-none border border-slate-400  "
               type="text"
               placeholder="Enter no of cols"
               value={pendingColsPerPage}
               onChange={(e) => setPendingColsPerPage(Number(e.target.value))}
             />
           </span>
-          <button
-            className="outline-none text-xs m-1 p-2 border border-gray-600 rounded-md tracking-tight  "
-            onClick={() => {
-              setColsPerPage(pendingColsPerPage);
-            }}
-            style={{
-              boxShadow: `rgba(99, 99, 99, 0.2) 0px 2px 8px 0px`,
-              transition: "box-shadow .3s ease",
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.boxShadow = "0 0 10px rgba(0,0,0,0.3)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.boxShadow = "0 0 5px rgba(0,0,0,0.1)")
-            }
-          >
-            View Now →
-          </button>
         </span>
 
         <span>
@@ -369,11 +375,14 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
               onDragStart={(e) => handleDragStart(e, index)}
               onDragOver={(e) => handleDragOver(e, index)}
               onDrop={(e) => handleDrop(e, index)}
-              className="flex justify-between items-center font-bold p-3 uppercase cursor-pointer sticky top-0 bg-slate-50"
-              onClick={() => handleSort(index)}
+              className="flex justify-between items-center font-bold p-2 uppercase cursor-pointer sticky top-0 bg-slate-50"
+              
             >
               {column}
-              <span className="flex items-center">
+              <span
+                onClick={() => handleSort(index)}
+                className="flex h-8 w-10 items-center border border-dotted rounded-md p-1 border-slate-500"
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="16"
@@ -485,7 +494,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
               (value: any, colIndex: any) => (
                 <div key={`${rowIndex}-${colIndex}`}>
                   <input
-                    className="bg-transparent px-4 py-2 outline-2 outline-blue-800 rounded-md border-none"
+                    className="mt-1 bg-transparent px-4 py-2 outline-2 outline-blue-800 rounded-md border-none"
                     type="text"
                     value={value}
                     onChange={(e) =>
