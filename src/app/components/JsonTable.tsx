@@ -14,9 +14,6 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   const [sortColumn, setSortColumn] = useState<number | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [searchTerms, setSearchTerms] = useState<string[]>([]);
-
-  // const [currentPage, setCurrentPage] = useState(1);
-  // const [rowsPerPage, setRowsPerPage] = useState(100);
   const [colsPerPage, setColsPerPage] = useState(10);
 
   const [filenameState, setFilename] = useState(
@@ -24,13 +21,15 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   ); // remove extension
   const [fileExtension] = useState(filename.split(".").pop()); // get extension
 
-  // const [pendingRowsPerPage, setPendingRowsPerPage] = useState(rowsPerPage);
   const [pendingColsPerPage, setPendingColsPerPage] = useState(colsPerPage);
 
   const [globalSearchTerm, setGlobalSearchTerm] = useState("");
 
   const [uniqueValues, setUniqueValues] = useState<Array<Set<string>>>([]);
   const [selectedValues, setSelectedValues] = useState<Array<Set<string>>>([]);
+
+  const [displayedRows, setDisplayedRows] = useState(20);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const columns = colsPerPage
     ? tableData[0].slice(0, colsPerPage)
@@ -76,8 +75,22 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
 
     worker.postMessage({ rows: tableData, colsPerPage });
 
+    const handleScroll = () => {
+      if (containerRef.current) {
+        const { scrollHeight, scrollTop, clientHeight } = containerRef.current;
+        if (scrollTop + clientHeight >= scrollHeight) {
+          setDisplayedRows((displayedRows) => displayedRows + 20);
+        }
+      }
+    };
+    if (containerRef.current) {
+      containerRef.current.addEventListener("scroll", handleScroll);
+    }
+
     return () => {
-      worker.terminate();
+      if (containerRef.current) {
+        containerRef.current.removeEventListener("scroll", handleScroll);
+      }
     };
   }, [tableData, colsPerPage]);
 
@@ -136,19 +149,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
     return 0;
   });
 
-  // Calculate total pages
-  // const totalPages = rowsPerPage ? Math.ceil(rows.length / rowsPerPage) : 1;
-
-  // Calculate start and end row index
-  // const startRowIndex = (currentPage - 1) * rowsPerPage;
-  // const endRowIndex = startRowIndex + rowsPerPage;
-
-  // Slice rows for the current page
-  // const rowsOnCurrentPage = rowsPerPage
-  //   ? sortedRows.slice(startRowIndex, endRowIndex)
-  //   : sortedRows;
-
-  const rowsOnCurrentPage = sortedRows;
+  const rowsOnCurrentPage = sortedRows.slice(0, displayedRows);
 
   const handleCellChange = (
     rowIndex: number,
@@ -164,7 +165,6 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
     const updatedSearchTerms = [...searchTerms];
     updatedSearchTerms[index] = value;
     setSearchTerms(updatedSearchTerms);
-    // setCurrentPage(1);
   };
 
   const handleSort = (index: number) => {
@@ -245,10 +245,8 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
               className="w-[72px] ml-2 p-2 rounded-md bg-transparent text-sm outline-none border border-slate-200 hover:border-2"
               type="text"
               placeholder="Enter no of Rows"
-              // value={pendingRowsPerPage}
               value={rows.length}
               contentEditable="false"
-              // onChange={(e) => setPendingRowsPerPage(Number(e.target.value))}
             />
           </span>
           <span className="flex justify-center items-center">
@@ -265,7 +263,6 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
           <button
             className="outline-none text-xs m-1 p-2 border border-gray-600 rounded-md tracking-tight  "
             onClick={() => {
-              // setRowsPerPage(pendingRowsPerPage);
               setColsPerPage(pendingColsPerPage);
             }}
             style={{
@@ -333,44 +330,14 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
         </span>
       </div>
 
-      <div className="overflow-auto h-custom w-5/6 bg-gray-50 bg-opacity-60 backdrop-blur-sm mx-auto mt-4 border border-black rounded-lg">
+      <div
+        className="overflow-auto h-custom w-5/6 bg-gray-50 bg-opacity-60 backdrop-blur-sm mx-auto mt-4 border border-black rounded-lg"
+        ref={containerRef}
+      >
         <div
           className="grid gap-0"
           style={{ gridTemplateColumns: `repeat(${columns.length}, 1fr)` }}
         >
-          {/* {columns.map((column: any, index: any) => (
-            <div
-              key={index}
-              className="flex justify-between items-center font-bold p-3 uppercase cursor-pointer sticky top-0 bg-slate-50"
-              onClick={() => handleSort(index)}
-            >
-              {column}
-              <span className="flex items-center">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                </svg>
-
-                <span>
-                  {sortColumn === index
-                    ? sortDirection === "asc"
-                      ? "↓"
-                      : "↑"
-                    : ""}
-                </span>
-              </span>
-            </div>
-          ))} */}
-
           {columns.map((column: any, index: any) => (
             <div
               key={index}
@@ -520,11 +487,6 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
           )}
         </div>
       </div>
-      {/* <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-      /> */}
     </>
   );
 };
