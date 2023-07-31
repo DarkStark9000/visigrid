@@ -1,5 +1,5 @@
 import { FC, useState, useEffect, ChangeEvent, useRef } from "react";
-import Pagination from "./Pagination";
+// import Pagination from "./Pagination";
 import jsFileDownload from "js-file-download";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
@@ -15,15 +15,16 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [searchTerms, setSearchTerms] = useState<string[]>([]);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(100);
+  // const [currentPage, setCurrentPage] = useState(1);
+  // const [rowsPerPage, setRowsPerPage] = useState(100);
   const [colsPerPage, setColsPerPage] = useState(10);
+
   const [filenameState, setFilename] = useState(
     filename.split(".").slice(0, -1).join(".")
   ); // remove extension
   const [fileExtension] = useState(filename.split(".").pop()); // get extension
 
-  const [pendingRowsPerPage, setPendingRowsPerPage] = useState(rowsPerPage);
+  // const [pendingRowsPerPage, setPendingRowsPerPage] = useState(rowsPerPage);
   const [pendingColsPerPage, setPendingColsPerPage] = useState(colsPerPage);
 
   const [globalSearchTerm, setGlobalSearchTerm] = useState("");
@@ -136,17 +137,18 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   });
 
   // Calculate total pages
-
-  const totalPages = rowsPerPage ? Math.ceil(rows.length / rowsPerPage) : 1;
+  // const totalPages = rowsPerPage ? Math.ceil(rows.length / rowsPerPage) : 1;
 
   // Calculate start and end row index
-  const startRowIndex = (currentPage - 1) * rowsPerPage;
-  const endRowIndex = startRowIndex + rowsPerPage;
+  // const startRowIndex = (currentPage - 1) * rowsPerPage;
+  // const endRowIndex = startRowIndex + rowsPerPage;
 
   // Slice rows for the current page
-  const rowsOnCurrentPage = rowsPerPage
-    ? sortedRows.slice(startRowIndex, endRowIndex)
-    : sortedRows;
+  // const rowsOnCurrentPage = rowsPerPage
+  //   ? sortedRows.slice(startRowIndex, endRowIndex)
+  //   : sortedRows;
+
+  const rowsOnCurrentPage = sortedRows;
 
   const handleCellChange = (
     rowIndex: number,
@@ -162,7 +164,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
     const updatedSearchTerms = [...searchTerms];
     updatedSearchTerms[index] = value;
     setSearchTerms(updatedSearchTerms);
-    setCurrentPage(1);
+    // setCurrentPage(1);
   };
 
   const handleSort = (index: number) => {
@@ -216,8 +218,10 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
               className="w-[72px] ml-2 p-2 rounded-md bg-transparent text-sm outline-none border border-slate-200 hover:border-2"
               type="text"
               placeholder="Enter no of Rows"
-              value={pendingRowsPerPage}
-              onChange={(e) => setPendingRowsPerPage(Number(e.target.value))}
+              // value={pendingRowsPerPage}
+              value={rows.length}
+              contentEditable="false"
+              // onChange={(e) => setPendingRowsPerPage(Number(e.target.value))}
             />
           </span>
           <span className="flex justify-center items-center">
@@ -234,7 +238,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
           <button
             className="outline-none text-xs m-1 p-2 border border-gray-600 rounded-md tracking-tight  "
             onClick={() => {
-              setRowsPerPage(pendingRowsPerPage);
+              // setRowsPerPage(pendingRowsPerPage);
               setColsPerPage(pendingColsPerPage);
             }}
             style={{
@@ -452,11 +456,11 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
           )}
         </div>
       </div>
-      <Pagination
+      {/* <Pagination
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={setCurrentPage}
-      />
+      /> */}
     </>
   );
 };
