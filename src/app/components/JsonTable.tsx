@@ -58,7 +58,16 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
           (values: Iterable<unknown> | null | undefined) => new Set(values)
         )
       );
-      setSelectedValues(newUniqueValues.map(() => new Set()));
+
+      setSelectedValues((prevSelectedValues) => {
+        const newSelectedValues = newUniqueValues.map((_: any, index: any) =>
+          prevSelectedValues[index as number]
+            ? prevSelectedValues[index as number]
+            : new Set()
+        );
+
+        return newSelectedValues;
+      });
     };
 
     worker.onerror = (error) => {
@@ -246,6 +255,11 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
         className="mt-4 mx-auto p-1 h-[48px] text-black text-sm
           flex justify-between items-center font-normal tracking-wide border border-solid border-black rounded-md w-5/6 backdrop-blur-2xl"
       >
+        <button
+          onClick={() => setSelectedValues(uniqueValues.map(() => new Set()))}
+        >
+          Reset Filters
+        </button>
         <span className="px-2 flex justify-between w-[360px] ">
           <span className="flex justify-center items-center">
             <label htmlFor="rows">Rows</label>
@@ -418,7 +432,6 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
                       ▾
                     </button>
                   </div>
-
                   {isOpen[index] && (
                     <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 overflow-auto max-h-60">
                       <div
@@ -437,6 +450,9 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
                                 <input
                                   type="checkbox"
                                   value={value}
+                                  checked={selectedValues[index as number].has(
+                                    value
+                                  )}
                                   onChange={(e) =>
                                     handleCheckboxChange(
                                       index,
