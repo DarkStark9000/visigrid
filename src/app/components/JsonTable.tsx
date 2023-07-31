@@ -31,6 +31,9 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   const [displayedRows, setDisplayedRows] = useState(20);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const columns = colsPerPage
     ? tableData[0].slice(0, colsPerPage)
     : tableData[0];
@@ -87,7 +90,16 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
       containerRef.current.addEventListener("scroll", handleScroll);
     }
 
+    const handleClickOutside = (event: { target: any }) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
     return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
       if (containerRef.current) {
         containerRef.current.removeEventListener("scroll", handleScroll);
       }
@@ -242,11 +254,11 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
             <label htmlFor="rows">Rows</label>
             <input
               name="rows"
-              className="w-[72px] ml-2 p-2 rounded-md bg-transparent text-sm outline-none border border-slate-200 hover:border-2"
+              className="w-[72px] ml-2 p-2 rounded-md bg-transparent text-sm outline-none  "
               type="text"
               placeholder="Enter no of Rows"
               value={rows.length}
-              contentEditable="false"
+              readOnly
             />
           </span>
           <span className="flex justify-center items-center">
@@ -376,25 +388,6 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
           ))}
 
           {columns.map((_: any, index: any) => {
-            const [isOpen, setIsOpen] = useState(false);
-            const dropdownRef = useRef<HTMLDivElement>(null);
-
-            useEffect(() => {
-              const handleClickOutside = (event: { target: any }) => {
-                if (
-                  dropdownRef.current &&
-                  !dropdownRef.current.contains(event.target)
-                ) {
-                  setIsOpen(false);
-                }
-              };
-
-              document.addEventListener("mousedown", handleClickOutside);
-              return () => {
-                document.removeEventListener("mousedown", handleClickOutside);
-              };
-            }, []);
-
             return (
               <div
                 key={index}
