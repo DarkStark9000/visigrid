@@ -1,6 +1,26 @@
 import { ChangeEvent, FC, useState } from "react";
 import Papa from "papaparse";
 
+const flattenObject = (
+  obj: any,
+  prefix: string = "",
+  res: { [key: string]: any } = {}
+) => {
+  Object.keys(obj).forEach((key) => {
+    const pre = prefix.length ? prefix + "." : "";
+    if (
+      typeof obj[key] === "object" &&
+      obj[key] !== null &&
+      !Array.isArray(obj[key])
+    ) {
+      flattenObject(obj[key], pre + key, res);
+    } else {
+      res[pre + key] = obj[key];
+    }
+  });
+  return res;
+};
+
 interface UploadButtonProps {
   onFileLoaded: (data: any, filename: string) => void;
   resetData: () => void;
@@ -39,19 +59,34 @@ const UploadButton: FC<UploadButtonProps> = ({
           const result = evt.target?.result as string;
 
           if (file.type === "application/json") {
-            const data = JSON.parse(result);
+            let data = JSON.parse(result);
+            if (Array.isArray(data)) {
+              data = data.map((obj) => flattenObject(obj));
+            } else {
+              data = [flattenObject(data)];
+            }
             onFileLoaded(data, file.name);
           } else if (file.type === "text/csv") {
             Papa.parse(result, {
               complete: (results) => {
-                onFileLoaded(results.data, file.name);
+                const [headers, ...data] = results.data;
+                const formattedData = data.map((d: any) => {
+                  return (headers as string[]).reduce(
+                    (obj: any, header: string, i: number) => {
+                      obj[header] = (d as (string | number)[])[i];
+                      return obj;
+                    },
+                    {}
+                  );
+                });
+
+                onFileLoaded(formattedData, file.name);
               },
             });
           } else {
             setIsModalOpen(true);
           }
         } catch (e) {
-          // console.error("Could not parse file.");
           setIsModalOpen(true);
         }
       };

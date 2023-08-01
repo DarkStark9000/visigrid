@@ -42,11 +42,8 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   const [debouncedColsPerPage, setDebouncedColsPerPage] =
     useState(pendingColsPerPage);
 
-  const columns = colsPerPage
-    ? tableData[0].slice(0, colsPerPage)
-    : tableData[0];
-
-  const rows = tableData.slice(1);
+  const columns = Object.keys(tableData[0]);
+  const rows = tableData;
 
   const [isOpen, setIsOpen] = useState(new Array(columns.length).fill(false));
   const dropdownRef = useRef(columns.map(() => createRef<HTMLDivElement>()));
@@ -77,7 +74,10 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
       console.error("An error occurred in the Web Worker:", error);
     };
 
-    worker.postMessage({ rows: tableData, colsPerPage });
+    worker.postMessage({
+      rows: tableData,
+      colsPerPage,
+    });
 
     return () => {
       worker.terminate();
@@ -111,10 +111,8 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   // to close dropdown when clicked outside
   const handleClickOutside = (event: { target: any }) => {
     const newIsOpen = isOpen.map((open, index) => {
-      if (
-        dropdownRef.current[index].current &&
-        !dropdownRef.current[index].current.contains(event.target)
-      ) {
+      const ref = dropdownRef.current[index];
+      if (ref && ref.current && !ref.current.contains(event.target)) {
         return false;
       }
       return open;
@@ -143,13 +141,14 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   const searchedRows = rows.filter(
     (row) =>
       searchTerms.every(
-        (term, index) => !term || `${row[index]}`.includes(term)
+        (term, index) => !term || `${Object.values(row)[index]}`.includes(term)
       ) &&
       selectedValues.every(
-        (set, index) => set.size === 0 || set.has(row[index])
+        (set, index) =>
+          set.size === 0 || set.has(Object.values(row)[index] as string)
       ) &&
       (globalSearchTerm === "" ||
-        row.some((cell: any) =>
+        Object.values(row).some((cell: any) =>
           String(cell).toLowerCase().includes(globalSearchTerm.toLowerCase())
         ))
   );
@@ -157,28 +156,27 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   const sortedRows = useMemo(() => {
     return [...searchedRows].sort((a, b) => {
       if (sortColumn !== null) {
-        const valA = a[sortColumn];
-        const valB = b[sortColumn];
+        const columnKey = columns[sortColumn]; // Convert sortColumn to string key
+        const valA = a[columnKey];
+        const valB = b[columnKey];
         const numA = Number(valA);
         const numB = Number(valB);
         const dateA = new Date(valA);
         const dateB = new Date(valB);
 
         if (!isNaN(numA) && !isNaN(numB)) {
-          // If values are numbers, compare as numbers
           return sortDirection === "asc" ? numA - numB : numB - numA;
         } else if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
-          // If values are dates, compare as dates
           return sortDirection === "asc"
             ? dateA.getTime() - dateB.getTime()
             : dateB.getTime() - dateA.getTime();
         } else {
-          // Compare as strings
           return sortDirection === "asc"
             ? `${valA}`.localeCompare(`${valB}`)
             : `${valB}`.localeCompare(`${valA}`);
         }
       }
+
       return 0;
     });
   }, [searchedRows, sortColumn, sortDirection]);
@@ -187,12 +185,12 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
 
   const handleCellChange = (
     rowIndex: number,
-    colIndex: number,
+    column: string,
     value: string
   ) => {
     const updatedRows = [...rows];
-    updatedRows[rowIndex][colIndex] = value;
-    setTableData([columns, ...updatedRows]);
+    updatedRows[rowIndex][column] = value;
+    setTableData(updatedRows);
   };
 
   const handleSearch = (index: number, value: string) => {
@@ -376,7 +374,6 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
               onDragOver={(e) => handleDragOver(e, index)}
               onDrop={(e) => handleDrop(e, index)}
               className="flex justify-between items-center font-bold p-2 uppercase cursor-pointer sticky top-0 bg-slate-50"
-              
             >
               {column}
               <span
@@ -488,22 +485,19 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
               </div>
             );
           })}
-
           {rowsOnCurrentPage.map((row, rowIndex) =>
-            (colsPerPage ? row.slice(0, colsPerPage) : row).map(
-              (value: any, colIndex: any) => (
-                <div key={`${rowIndex}-${colIndex}`}>
-                  <input
-                    className="mt-1 bg-transparent px-4 py-2 outline-2 outline-blue-800 rounded-md border-none"
-                    type="text"
-                    value={value}
-                    onChange={(e) =>
-                      handleCellChange(rowIndex, colIndex, e.target.value)
-                    }
-                  />
-                </div>
-              )
-            )
+            Object.keys(row).map((column, colIndex) => (
+              <div key={`${rowIndex}-${colIndex}`}>
+                <input
+                  className="mt-1 bg-transparent px-4 py-2 outline-2 outline-blue-800 rounded-md border-none"
+                  type="text"
+                  value={row[column]}
+                  onChange={(e) =>
+                    handleCellChange(rowIndex, column as any, e.target.value)
+                  }
+                />
+              </div>
+            ))
           )}
         </div>
       </div>
