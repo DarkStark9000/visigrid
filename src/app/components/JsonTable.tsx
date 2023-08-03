@@ -17,8 +17,9 @@ interface JsonTableProps {
 }
 
 const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
+  const [columns, setColumns] = useState(Object.keys(data[0]));
   const [tableData, setTableData] = useState(data);
-  const columns = Object.keys(tableData[0]);
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const rows = tableData;
 
   const [colsPerPage, setColsPerPage] = useState(columns.length);
@@ -214,10 +215,8 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
     setFilenameParts(newFilename.split("."));
   };
 
-  let draggedIdx: number | null = null;
-
   const handleDragStart = (e: React.DragEvent, index: number) => {
-    draggedIdx = index;
+    setDraggedIdx(index); // call setDraggedIdx to update the state
     e.dataTransfer.effectAllowed = "move";
   };
 
@@ -227,17 +226,14 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
 
   const handleDrop = (e: React.DragEvent, index: number) => {
     e.preventDefault();
-
-    // Update the tableData state by swapping the positions of the columns
     if (draggedIdx !== null) {
-      const newTableData = tableData.map((row) => {
-        const temp = row[draggedIdx as number];
-        row[draggedIdx as number] = row[index];
-        row[index] = temp;
-        return row;
-      });
-
-      setTableData(newTableData);
+      const newColumns = [...columns];
+      [newColumns[draggedIdx as number], newColumns[index]] = [
+        newColumns[index],
+        newColumns[draggedIdx as number],
+      ];
+      setColumns(newColumns);
+      setDraggedIdx(null);
     }
   };
 
@@ -362,10 +358,6 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
         ref={containerRef}
         onScroll={handleScroll}
       >
-        {/* <div
-          className="grid gap-0"
-          style={{ gridTemplateColumns: `repeat(${columns.length}, 1fr)` }}
-        > */}
         <div
           className="grid gap-0"
           style={{ gridTemplateColumns: `repeat(${colsPerPage}, 1fr)` }}
@@ -497,7 +489,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
                   type="text"
                   value={row[column]}
                   onChange={(e) =>
-                    handleCellChange(rowIndex, column as any, e.target.value)
+                    handleCellChange(rowIndex, column, e.target.value)
                   }
                 />
               </div>
