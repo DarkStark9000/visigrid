@@ -18,18 +18,21 @@ interface JsonTableProps {
 
 const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   const [tableData, setTableData] = useState(data);
+  const columns = Object.keys(tableData[0]);
+  const rows = tableData;
+
+  const [colsPerPage, setColsPerPage] = useState(columns.length);
+  const [pendingColsPerPage, setPendingColsPerPage] = useState(colsPerPage);
+
   const [sortColumn, setSortColumn] = useState<number | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [searchTerms, setSearchTerms] = useState<string[]>([]);
-  const [colsPerPage, setColsPerPage] = useState(10);
 
   const [filenameParts, setFilenameParts] = useState(filename.split("."));
   const [filenameState, setFilename] = useState(
     filenameParts.slice(0, -1).join(".")
   );
   const [fileExtension] = useState(filenameParts.pop());
-
-  const [pendingColsPerPage, setPendingColsPerPage] = useState(colsPerPage);
 
   const [globalSearchTerm, setGlobalSearchTerm] = useState("");
 
@@ -41,9 +44,6 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
 
   const [debouncedColsPerPage, setDebouncedColsPerPage] =
     useState(pendingColsPerPage);
-
-  const columns = Object.keys(tableData[0]);
-  const rows = tableData;
 
   const [isOpen, setIsOpen] = useState(new Array(columns.length).fill(false));
   const dropdownRef = useRef(columns.map(() => createRef<HTMLDivElement>()));
@@ -362,11 +362,15 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
         ref={containerRef}
         onScroll={handleScroll}
       >
-        <div
+        {/* <div
           className="grid gap-0"
           style={{ gridTemplateColumns: `repeat(${columns.length}, 1fr)` }}
+        > */}
+        <div
+          className="grid gap-0"
+          style={{ gridTemplateColumns: `repeat(${colsPerPage}, 1fr)` }}
         >
-          {columns.map((column: any, index: any) => (
+          {columns.slice(0, colsPerPage).map((column: any, index: any) => (
             <div
               key={index}
               draggable="true"
@@ -405,7 +409,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
             </div>
           ))}
 
-          {columns.map((_: any, index: any) => {
+          {columns.slice(0, colsPerPage).map((_: any, index: any) => {
             return (
               <div
                 key={index}
@@ -486,7 +490,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
             );
           })}
           {rowsOnCurrentPage.map((row, rowIndex) =>
-            Object.keys(row).map((column, colIndex) => (
+            columns.slice(0, colsPerPage).map((column, colIndex) => (
               <div key={`${rowIndex}-${colIndex}`}>
                 <input
                   className="mt-1 bg-transparent px-4 py-2 outline-2 outline-blue-800 rounded-md border-none"
