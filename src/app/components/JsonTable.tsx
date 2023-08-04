@@ -17,19 +17,23 @@ interface JsonTableProps {
 }
 
 const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
+  const [columns, setColumns] = useState(Object.keys(data[0]));
   const [tableData, setTableData] = useState(data);
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  const rows = tableData;
+
+  const [colsPerPage, setColsPerPage] = useState(columns.length);
+  const [pendingColsPerPage, setPendingColsPerPage] = useState(colsPerPage);
+
   const [sortColumn, setSortColumn] = useState<number | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [searchTerms, setSearchTerms] = useState<string[]>([]);
-  const [colsPerPage, setColsPerPage] = useState(10);
 
   const [filenameParts, setFilenameParts] = useState(filename.split("."));
   const [filenameState, setFilename] = useState(
     filenameParts.slice(0, -1).join(".")
   );
   const [fileExtension] = useState(filenameParts.pop());
-
-  const [pendingColsPerPage, setPendingColsPerPage] = useState(colsPerPage);
 
   const [globalSearchTerm, setGlobalSearchTerm] = useState("");
 
@@ -41,12 +45,6 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
 
   const [debouncedColsPerPage, setDebouncedColsPerPage] =
     useState(pendingColsPerPage);
-
-  const columns = colsPerPage
-    ? tableData[0].slice(0, colsPerPage)
-    : tableData[0];
-
-  const rows = tableData.slice(1);
 
   const [isOpen, setIsOpen] = useState(new Array(columns.length).fill(false));
   const dropdownRef = useRef(columns.map(() => createRef<HTMLDivElement>()));
@@ -77,7 +75,10 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
       console.error("An error occurred in the Web Worker:", error);
     };
 
-    worker.postMessage({ rows: tableData, colsPerPage });
+    worker.postMessage({
+      rows: tableData,
+      colsPerPage,
+    });
 
     return () => {
       worker.terminate();
@@ -111,10 +112,8 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   // to close dropdown when clicked outside
   const handleClickOutside = (event: { target: any }) => {
     const newIsOpen = isOpen.map((open, index) => {
-      if (
-        dropdownRef.current[index].current &&
-        !dropdownRef.current[index].current.contains(event.target)
-      ) {
+      const ref = dropdownRef.current[index];
+      if (ref && ref.current && !ref.current.contains(event.target)) {
         return false;
       }
       return open;
@@ -143,13 +142,14 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   const searchedRows = rows.filter(
     (row) =>
       searchTerms.every(
-        (term, index) => !term || `${row[index]}`.includes(term)
+        (term, index) => !term || `${Object.values(row)[index]}`.includes(term)
       ) &&
       selectedValues.every(
-        (set, index) => set.size === 0 || set.has(row[index])
+        (set, index) =>
+          set.size === 0 || set.has(Object.values(row)[index] as string)
       ) &&
       (globalSearchTerm === "" ||
-        row.some((cell: any) =>
+        Object.values(row).some((cell: any) =>
           String(cell).toLowerCase().includes(globalSearchTerm.toLowerCase())
         ))
   );
@@ -157,28 +157,27 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
   const sortedRows = useMemo(() => {
     return [...searchedRows].sort((a, b) => {
       if (sortColumn !== null) {
-        const valA = a[sortColumn];
-        const valB = b[sortColumn];
+        const columnKey = columns[sortColumn]; // Convert sortColumn to string key
+        const valA = a[columnKey];
+        const valB = b[columnKey];
         const numA = Number(valA);
         const numB = Number(valB);
         const dateA = new Date(valA);
         const dateB = new Date(valB);
 
         if (!isNaN(numA) && !isNaN(numB)) {
-          // If values are numbers, compare as numbers
           return sortDirection === "asc" ? numA - numB : numB - numA;
         } else if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
-          // If values are dates, compare as dates
           return sortDirection === "asc"
             ? dateA.getTime() - dateB.getTime()
             : dateB.getTime() - dateA.getTime();
         } else {
-          // Compare as strings
           return sortDirection === "asc"
             ? `${valA}`.localeCompare(`${valB}`)
             : `${valB}`.localeCompare(`${valA}`);
         }
       }
+
       return 0;
     });
   }, [searchedRows, sortColumn, sortDirection]);
@@ -187,12 +186,12 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
 
   const handleCellChange = (
     rowIndex: number,
-    colIndex: number,
+    column: string,
     value: string
   ) => {
     const updatedRows = [...rows];
-    updatedRows[rowIndex][colIndex] = value;
-    setTableData([columns, ...updatedRows]);
+    updatedRows[rowIndex][column] = value;
+    setTableData(updatedRows);
   };
 
   const handleSearch = (index: number, value: string) => {
@@ -216,10 +215,8 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
     setFilenameParts(newFilename.split("."));
   };
 
-  let draggedIdx: number | null = null;
-
   const handleDragStart = (e: React.DragEvent, index: number) => {
-    draggedIdx = index;
+    setDraggedIdx(index); // call setDraggedIdx to update the state
     e.dataTransfer.effectAllowed = "move";
   };
 
@@ -229,17 +226,14 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
 
   const handleDrop = (e: React.DragEvent, index: number) => {
     e.preventDefault();
-
-    // Update the tableData state by swapping the positions of the columns
     if (draggedIdx !== null) {
-      const newTableData = tableData.map((row) => {
-        const temp = row[draggedIdx as number];
-        row[draggedIdx as number] = row[index];
-        row[index] = temp;
-        return row;
-      });
-
-      setTableData(newTableData);
+      const newColumns = [...columns];
+      [newColumns[draggedIdx as number], newColumns[index]] = [
+        newColumns[index],
+        newColumns[draggedIdx as number],
+      ];
+      setColumns(newColumns);
+      setDraggedIdx(null);
     }
   };
 
@@ -366,9 +360,9 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
       >
         <div
           className="grid gap-0"
-          style={{ gridTemplateColumns: `repeat(${columns.length}, 1fr)` }}
+          style={{ gridTemplateColumns: `repeat(${colsPerPage}, 1fr)` }}
         >
-          {columns.map((column: any, index: any) => (
+          {columns.slice(0, colsPerPage).map((column: any, index: any) => (
             <div
               key={index}
               draggable="true"
@@ -376,7 +370,6 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
               onDragOver={(e) => handleDragOver(e, index)}
               onDrop={(e) => handleDrop(e, index)}
               className="flex justify-between items-center font-bold p-2 uppercase cursor-pointer sticky top-0 bg-slate-50"
-              
             >
               {column}
               <span
@@ -408,7 +401,7 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
             </div>
           ))}
 
-          {columns.map((_: any, index: any) => {
+          {columns.slice(0, colsPerPage).map((_: any, index: any) => {
             return (
               <div
                 key={index}
@@ -488,22 +481,19 @@ const JsonTable: FC<JsonTableProps> = ({ data, filename }) => {
               </div>
             );
           })}
-
           {rowsOnCurrentPage.map((row, rowIndex) =>
-            (colsPerPage ? row.slice(0, colsPerPage) : row).map(
-              (value: any, colIndex: any) => (
-                <div key={`${rowIndex}-${colIndex}`}>
-                  <input
-                    className="mt-1 bg-transparent px-4 py-2 outline-2 outline-blue-800 rounded-md border-none"
-                    type="text"
-                    value={value}
-                    onChange={(e) =>
-                      handleCellChange(rowIndex, colIndex, e.target.value)
-                    }
-                  />
-                </div>
-              )
-            )
+            columns.slice(0, colsPerPage).map((column, colIndex) => (
+              <div key={`${rowIndex}-${colIndex}`}>
+                <input
+                  className="mt-1 bg-transparent px-4 py-2 outline-2 outline-blue-800 rounded-md border-none"
+                  type="text"
+                  value={row[column]}
+                  onChange={(e) =>
+                    handleCellChange(rowIndex, column, e.target.value)
+                  }
+                />
+              </div>
+            ))
           )}
         </div>
       </div>
